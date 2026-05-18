@@ -432,31 +432,32 @@ async function loadSession() {
 
     content.innerHTML = '';
 
-    // Découverte
-    setStatus('Recherche d\'une découverte…');
-    const discovery = await findDiscovery(subs, sugg);
-    if (discovery) content.appendChild(renderDiscovery(discovery));
-
-    // Bundles
     const usedThemes = themes || [];
-    for (const t of usedThemes.slice(0, 4)) {
-      setStatus(`Sélection de vidéos — ${t.theme}…`);
-      const matchedSubs = (t.channels||[])
-        .map(name => subMap[name.toLowerCase()] || subs.find(s => s.title.toLowerCase().includes(name.toLowerCase())))
-        .filter(Boolean);
+    const kw = sugg && !subMap[sugg.toLowerCase()] ? sugg : '';
 
-      const pool = matchedSubs.length ? matchedSubs : shuffle([...subs]).slice(0, 3);
-      let videos = [];
+    // Tout en parallèle
+    setStatus('Sélection des vidéos…');
+    const [discovery, ...bundleResults] = await Promise.all([
+      findDiscovery(subs, sugg),
+      ...usedThemes.slice(0, 4).map(async t => {
+        const matchedSubs = (t.channels||[])
+          .map(name => subMap[name.toLowerCase()] || subs.find(s => s.title.toLowerCase().includes(name.toLowerCase())))
+          .filter(Boolean);
+        const pool = shuffle(matchedSubs.length ? matchedSubs : [...subs]).slice(0, 5);
+        const videoArrays = await Promise.all(pool.map(sub => getFilteredVideos(sub.channelId, kw)));
+        const videos = [];
+        for (const vids of videoArrays) {
+          if (videos.length >= 5) break;
+          const pick = vids[Math.floor(Math.random() * Math.min(vids.length || 1, 5))];
+          if (pick && !videos.find(v => v.id === pick.id)) videos.push(pick);
+        }
+        return { theme: t.theme, videos };
+      })
+    ]);
 
-      for (const sub of shuffle(pool)) {
-        if (videos.length >= 5) break;
-        const kw = sugg && !subMap[sugg.toLowerCase()] ? sugg : '';
-        const vids = await getFilteredVideos(sub.channelId, kw);
-        const pick = vids[Math.floor(Math.random() * Math.min(vids.length, 5))];
-        if (pick && !videos.find(v => v.id === pick.id)) videos.push(pick);
-      }
-
-      if (videos.length) content.appendChild(renderBundle(t.theme, videos));
+    if (discovery) content.appendChild(renderDiscovery(discovery));
+    for (const b of bundleResults) {
+      if (b.videos.length) content.appendChild(renderBundle(b.theme, b.videos));
     }
 
     if (!content.children.length) {
