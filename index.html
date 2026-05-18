@@ -262,7 +262,7 @@ async function getSubscriptions() {
     }));
     pageToken = d.nextPageToken || '';
   } while (pageToken && subs.length < 100);
-  return subs;
+  return subs.filter(s => s.channelId && s.title);
 }
 
 async function getChannelUploads(channelId) {
@@ -344,7 +344,7 @@ async function generateThemes(subs, suggestion) {
   // If suggestion matches a channel name, make it a priority theme
   let themes = [];
   if (suggestion) {
-    const match = subs.find(s => s.title.toLowerCase().includes(suggestion.toLowerCase()));
+    const match = subs.find(s => s.title && s.title.toLowerCase().includes(suggestion.toLowerCase()));
     if (match) {
       themes.push({ theme: suggestion, channels: [match.title], subs: [match] });
     }
