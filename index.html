@@ -294,34 +294,81 @@ async function getFilteredVideos(channelId, keyword) {
 }
 
 // --- CLAUDE AI for themes ---
-async function generateThemes(subTitles, suggestion) {
-  const prompt = `Voici une liste de chaînes YouTube auxquelles un utilisateur est abonné :
-${subTitles.slice(0, 60).join(', ')}
+const CATEGORY_NAMES = {
+  '1': 'Films & Animation', '2': 'Voitures & Véhicules', '10': null,
+  '15': 'Animaux', '17': 'Sport', '18': 'Voyages',
+  '19': 'Voyages', '20': 'Jeux vidéo', '21': 'Vlogs',
+  '22': 'Vlogs', '23': 'Humour', '24': 'Divertissement',
+  '25': 'Actualités', '26': 'Politique', '27': 'Comment faire',
+  '28': 'Science & Tech', '29': 'Associations', '30': 'Films',
+  '31': 'Anime & Animation', '32': 'Action & Aventure', '33': 'Classiques',
+  '34': 'Comédie', '35': 'Documentaires', '36': 'Histoire',
+  '37': 'Horreur', '38': 'Science-fiction', '39': 'Thriller',
+  '40': 'Courts métrages', '41': 'Émissions', '42': 'Bandes-annonces'
+};
 
-${suggestion ? `L'utilisateur a aussi fait cette suggestion pour sa session : "${suggestion}"` : ''}
-
-Regroupe ces chaînes en exactement 4 thèmes cohérents et personnalisés (pas de musique, pas de clips). Donne un nom court et évocateur à chaque thème (2-4 mots max, en français). Associe 3 à 5 noms de chaînes à chaque thème.
-
-Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication :
-[
-  {"theme": "Nom du thème", "channels": ["Chaîne1", "Chaîne2", "Chaîne3"]},
-  ...
-]`;
-
-  const r = await fetch('/.netlify/functions/claude', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt })
+async function getChannelCategories(channelIds) {
+  const ids = channelIds.slice(0, 50).join(',');
+  const d = await ytGet(`channels?part=snippet,topicDetails&id=${ids}&maxResults=50`);
+  const map = {};
+  (d.items||[]).forEach(ch => {
+    const topics = ch.topicDetails?.topicCategories || [];
+    let cat = 'Divers';
+    if (topics.some(t => t.includes('Science'))) cat = 'Science & Tech';
+    else if (topics.some(t => t.includes('Technology'))) cat = 'Science & Tech';
+    else if (topics.some(t => t.includes('Gaming'))) cat = 'Jeux vidéo';
+    else if (topics.some(t => t.includes('Entertainment'))) cat = 'Divertissement';
+    else if (topics.some(t => t.includes('Sport'))) cat = 'Sport';
+    else if (topics.some(t => t.includes('Lifestyle'))) cat = 'Style de vie';
+    else if (topics.some(t => t.includes('Society'))) cat = 'Société & Culture';
+    else if (topics.some(t => t.includes('Food'))) cat = 'Cuisine';
+    else if (topics.some(t => t.includes('Travel'))) cat = 'Voyages';
+    else if (topics.some(t => t.includes('Film'))) cat = 'Cinéma';
+    map[ch.id] = cat;
   });
-  const raw = await r.text();
-  console.log('Claude raw response:', raw);
-  let d;
-  try { d = JSON.parse(raw); } catch(e) { console.error('Parse error:', e); return null; }
-  if (d.error) { console.error('Claude error:', d.error); return null; }
-  const text = d.content?.map(c => c.text||'').join('') || '[]';
-  console.log('Claude text:', text);
-  try { return JSON.parse(text.replace(/```json|```/g,'')); }
-  catch(e) { console.error('Theme parse error:', e); return null; }
+  return map;
+}
+
+async function generateThemes(subs, suggestion) {
+  // Batch channel category lookup
+  const catMap = await getChannelCategories(subs.map(s => s.channelId));
+
+  // Group by category
+  const groups = {};
+  subs.forEach(s => {
+    const cat = catMap[s.channelId] || 'Divers';
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(s);
+  });
+
+  // If suggestion matches a channel name, make it a priority theme
+  let themes = [];
+  if (suggestion) {
+    const match = subs.find(s => s.title.toLowerCase().includes(suggestion.toLowerCase()));
+    if (match) {
+      themes.push({ theme: suggestion, channels: [match.title], subs: [match] });
+    }
+  }
+
+  // Pick top 4 categories by size, excluding music
+  const sorted = Object.entries(groups)
+    .filter(([cat]) => cat !== null)
+    .sort((a, b) => b[1].length - a[1].length);
+
+  for (const [cat, chans] of sorted) {
+    if (themes.length >= 4) break;
+    if (!themes.find(t => t.theme === cat)) {
+      themes.push({ theme: cat, channels: chans.map(s => s.title), subs: chans });
+    }
+  }
+
+  // Fallback: if less than 4 themes, add random groups
+  if (themes.length < 4) {
+    const remaining = subs.filter(s => !themes.some(t => t.subs.find(c => c.channelId === s.channelId)));
+    if (remaining.length) themes.push({ theme: 'À découvrir', channels: remaining.map(s => s.title), subs: remaining });
+  }
+
+  return themes.slice(0, 4);
 }
 
 async function findDiscovery(subs, suggestion) {
