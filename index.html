@@ -256,29 +256,41 @@ async function getSubscriptions() {
     const url = `subscriptions?part=snippet&mine=true&maxResults=50${pageToken ? '&pageToken='+pageToken : ''}`;
     const d = await ytGet(url);
     if (d.error) throw new Error(d.error.message);
-    (d.items||[]).forEach(i => subs.push({ channelId: i.snippet.resourceId.channelId, title: i.snippet.title }));
+    (d.items||[]).forEach(i => subs.push({
+      channelId: i.snippet.resourceId.channelId,
+      title: i.snippet.title
+    }));
     pageToken = d.nextPageToken || '';
-  } while (pageToken);
+  } while (pageToken && subs.length < 100);
   return subs;
 }
 
-async function getFilteredVideos(channelId, keyword) {
-  let url = `search?part=snippet&channelId=${channelId}&order=date&maxResults=8&type=video`;
-  if (keyword) url += `&q=${encodeURIComponent(keyword)}`;
+async function getChannelUploads(channelId) {
+  // uploads playlist = UC... -> UU...
+  const playlistId = 'UU' + channelId.slice(2);
+  const url = `playlistItems?part=snippet&playlistId=${playlistId}&maxResults=5`;
   const d = await ytGet(url);
   if (d.error) return [];
   return (d.items||[])
     .filter(v => {
-      const t = v.snippet.title.toLowerCase();
+      const t = (v.snippet.title||'').toLowerCase();
       return !t.includes('#shorts') && !t.includes('official music') && !t.includes('official audio') && !t.includes('lyrics');
     })
     .map(v => ({
-      id: v.id.videoId,
+      id: v.snippet.resourceId.videoId,
       title: v.snippet.title,
-      channel: v.snippet.channelTitle,
+      channel: v.snippet.channelTitle || v.snippet.videoOwnerChannelTitle,
       thumbnail: v.snippet.thumbnails?.medium?.url || v.snippet.thumbnails?.default?.url,
       duration: ''
     }));
+}
+
+async function getFilteredVideos(channelId, keyword) {
+  const videos = await getChannelUploads(channelId);
+  if (!keyword) return videos;
+  const kw = keyword.toLowerCase();
+  const filtered = videos.filter(v => v.title.toLowerCase().includes(kw));
+  return filtered.length ? filtered : videos;
 }
 
 // --- CLAUDE AI for themes ---
