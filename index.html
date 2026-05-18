@@ -308,24 +308,20 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication :
 }
 
 async function findDiscovery(subs, suggestion) {
-  // Search outside usual channels
   const keywords = suggestion || 'documentaire fascinant découverte';
   const d = await ytGet(`search?part=snippet&type=video&q=${encodeURIComponent(keywords)}&maxResults=20&order=relevance&relevanceLanguage=fr`);
   const items = (d.items||[]).filter(v => {
     const cid = v.snippet.channelId;
-    return !subs.some(s => s.channelId === cid) && !v.snippet.title.toLowerCase().includes('#shorts');
+    const t = v.snippet.title.toLowerCase();
+    return !subs.some(s => s.channelId === cid)
+      && !t.includes('#shorts') && !t.includes('official music') && !t.includes('lyrics');
   });
   if (!items.length) return null;
-  const picked = items[Math.floor(Math.random() * Math.min(items.length, 10))];
-  const details = await getVideoDetails([picked.id.videoId]);
-  if (!details.length) return null;
-  const v = details[0];
-  const dur = parseDuration(v.contentDetails.duration);
-  if (dur < 60 || v.snippet.categoryId === MUSIC_CATEGORY) return null;
+  const v = items[Math.floor(Math.random() * Math.min(items.length, 10))];
   return {
-    id: v.id, title: v.snippet.title, channel: v.snippet.channelTitle,
-    thumbnail: v.snippet.thumbnails?.medium?.url,
-    duration: formatDuration(dur)
+    id: v.id.videoId, title: v.snippet.title, channel: v.snippet.channelTitle,
+    thumbnail: v.snippet.thumbnails?.medium?.url || v.snippet.thumbnails?.default?.url,
+    duration: ''
   };
 }
 
