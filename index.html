@@ -449,7 +449,7 @@ function renderDiscovery(v) {
 // --- MAIN ---
 async function loadSession() {
   const content = document.getElementById('main-content');
-  const sugg = localStorage.getItem('ytcalm_suggestion') || '';
+  const sugg = (localStorage.getItem('ytcalm_suggestion') || '').toString().trim();
   if (sugg) document.getElementById('suggInput').value = sugg;
 
   try {
@@ -501,7 +501,7 @@ async function loadSession() {
 }
 
 function saveSuggestion() {
-  const val = document.getElementById('suggInput').value.trim();
+  const val = (document.getElementById('suggInput').value || '').toString().trim();
   localStorage.setItem('ytcalm_suggestion', val);
   const s = document.getElementById('suggSaved');
   s.style.display = 'block';
