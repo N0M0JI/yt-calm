@@ -313,10 +313,15 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication :
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt })
   });
-  const d = await r.json();
+  const raw = await r.text();
+  console.log('Claude raw response:', raw);
+  let d;
+  try { d = JSON.parse(raw); } catch(e) { console.error('Parse error:', e); return null; }
+  if (d.error) { console.error('Claude error:', d.error); return null; }
   const text = d.content?.map(c => c.text||'').join('') || '[]';
+  console.log('Claude text:', text);
   try { return JSON.parse(text.replace(/```json|```/g,'')); }
-  catch(e) { return null; }
+  catch(e) { console.error('Theme parse error:', e); return null; }
 }
 
 async function findDiscovery(subs, suggestion) {
