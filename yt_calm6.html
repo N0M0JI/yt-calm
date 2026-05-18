@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>YT Calm</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #1a1208; --surface: #2a1f0f; --surface2: #332714;
+    --accent: #e8823a; --accent2: #f5a55a; --cream: #f5eed8; --cream2: #ede0c0;
+    --text: #f5eed8; --muted: #a89070; --danger: #e05c3a; --success: #7ec89a;
+    --radius: 16px; --serif: 'Georgia', 'Times New Roman', serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Segoe UI', sans-serif; min-height: 100vh; }
+  .screen { display: none; flex-direction: column; }
+  .screen.active { display: flex; }
+
+  /* LOGIN */
+  #login { align-items: center; justify-content: center; min-height: 100vh; gap: 32px; padding: 40px 24px; text-align: center; }
+  .logo-eyebrow { font-family: var(--serif); font-size: .8rem; letter-spacing: 3px; color: var(--accent); text-transform: uppercase; }
+  .logo h1 { font-family: var(--serif); font-size: 3rem; font-weight: 400; color: var(--cream); }
+  .logo h1 em { font-style: italic; color: var(--accent2); }
+  .logo-line { width: 48px; height: 1.5px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+  .logo p { color: var(--muted); font-size: 1rem; line-height: 1.7; font-family: var(--serif); font-style: italic; }
+  .btn-google {
+    display: flex; align-items: center; gap: 12px; background: var(--cream);
+    color: #2a1f0f; border: none; border-radius: 12px; padding: 14px 28px;
+    font-size: 1rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 20px #e8823a33;
+  }
+  .btn-google:active { opacity: .85; }
+  .btn-google img { width: 20px; height: 20px; }
+
+  /* APP */
+  #app { max-width: 100%; padding: 36px 20px 80px; }
+  .app-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; max-width: 720px; margin-left: auto; margin-right: auto; }
+  .app-header-left .eyebrow { font-family: var(--serif); font-size: .72rem; letter-spacing: 2.5px; color: var(--accent); text-transform: uppercase; }
+  .app-header h1 { font-family: var(--serif); font-size: 1.6rem; font-weight: 400; color: var(--cream); }
+  .app-header h1 em { font-style: italic; color: var(--accent2); }
+  .btn-ghost { background: none; border: 1.5px solid #4a3520; border-radius: 9px; color: var(--muted); font-size: .85rem; padding: 8px 14px; cursor: pointer; }
+  .btn-ghost:active { border-color: var(--accent); color: var(--accent2); }
+
+  /* PLAYER OVERLAY */
+  #player-overlay {
+    display: none; position: fixed; inset: 0; background: #0f0a04ee;
+    z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 20px;
+  }
+  #player-overlay.active { display: flex; }
+  .player-close {
+    position: absolute; top: 20px; right: 20px;
+    background: var(--surface); border: 1px solid #4a3520; border-radius: 50%;
+    color: var(--cream); font-size: 1.4rem; width: 44px; height: 44px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .player-wrap { width: 100%; max-width: 800px; }
+  .player-embed { position: relative; padding-top: 56.25%; background: #000; border-radius: var(--radius); overflow: hidden; }
+  .player-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+  .player-info { margin-top: 14px; text-align: center; }
+  .player-title { font-size: 1rem; font-weight: 600; color: var(--cream); line-height: 1.4; }
+  .player-channel { font-size: .85rem; color: var(--accent2); font-family: var(--serif); font-style: italic; margin-top: 4px; }
+
+  /* BUNDLES */
+  .bundle { margin-bottom: 36px; }
+  .bundle-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; padding: 0 2px; }
+  .bundle-title { font-family: var(--serif); font-size: 1.1rem; font-weight: 400; color: var(--cream); }
+  .bundle-title em { font-style: italic; color: var(--accent2); }
+  .bundle-line { flex: 1; height: 1px; background: linear-gradient(90deg, #4a352066, transparent); }
+  .bundle-row { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+  .bundle-row::-webkit-scrollbar { display: none; }
+
+  /* VIDEO THUMB CARDS */
+  .thumb-card {
+    flex: 0 0 220px; background: var(--surface); border-radius: 12px; overflow: hidden;
+    border: 1px solid #4a3520; cursor: pointer; scroll-snap-align: start; transition: border-color .2s;
+  }
+  .thumb-card:active { border-color: var(--accent); }
+  .thumb-img { position: relative; width: 100%; padding-top: 56.25%; background: #0f0a04; overflow: hidden; }
+  .thumb-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .thumb-play {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: #00000044;
+  }
+  .thumb-play svg { width: 36px; height: 36px; opacity: .9; }
+  .thumb-info { padding: 10px 12px; }
+  .thumb-title { font-size: .82rem; font-weight: 600; line-height: 1.35; color: var(--cream); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .thumb-channel { font-size: .75rem; color: var(--accent2); font-style: italic; margin-top: 4px; }
+  .thumb-duration { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+
+  /* DECOUVERTE */
+  .decouverte-card {
+    max-width: 720px; margin: 0 auto 36px; background: var(--surface); border-radius: var(--radius);
+    border: 1px solid var(--accent); cursor: pointer; overflow: hidden; transition: border-color .2s;
+  }
+  .decouverte-card:active { border-color: var(--accent2); }
+  .decouverte-label {
+    background: var(--accent); color: #1a1208; font-size: .72rem; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase; padding: 6px 14px; font-family: var(--serif);
+  }
+  .decouverte-img { position: relative; width: 100%; padding-top: 40%; background: #0f0a04; overflow: hidden; }
+  .decouverte-img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .85; }
+  .decouverte-img .thumb-play { background: #00000055; }
+  .decouverte-info { padding: 14px 16px; }
+  .decouverte-info .thumb-title { font-size: .95rem; -webkit-line-clamp: 3; }
+  .decouverte-info .thumb-channel { font-size: .82rem; }
+
+  /* SUGGESTION */
+  .bottom-zone { max-width: 720px; margin: 8px auto 0; display: flex; flex-direction: column; gap: 14px; }
+  .suggestion-box { background: var(--surface); border-radius: var(--radius); padding: 18px; display: flex; flex-direction: column; gap: 10px; border: 1px solid #4a3520; }
+  .suggestion-box label { font-family: var(--serif); font-size: .78rem; color: var(--accent); font-style: italic; letter-spacing: 1px; }
+  .suggestion-row { display: flex; gap: 10px; }
+  .suggestion-row input {
+    flex: 1; background: var(--surface2); border: 1.5px solid #4a3520; border-radius: 10px;
+    color: var(--cream); font-size: .97rem; padding: 11px 14px; outline: none; -webkit-appearance: none; font-family: inherit;
+  }
+  .suggestion-row input:focus { border-color: var(--accent); }
+  .btn-save { background: var(--accent); border: none; border-radius: 10px; color: #1a1208; font-size: .88rem; font-weight: 700; padding: 11px 16px; cursor: pointer; white-space: nowrap; }
+  .btn-save:active { background: var(--accent2); }
+  .sugg-hint { font-size: .78rem; color: var(--muted); font-family: var(--serif); font-style: italic; }
+  .suggestion-saved { font-size: .82rem; color: var(--success); display: none; }
+  .btn-done {
+    background: none; border: 1.5px solid #4a3520; border-radius: var(--radius);
+    color: var(--muted); font-size: 1rem; font-family: var(--serif); font-style: italic; padding: 17px;
+    cursor: pointer; text-align: center; width: 100%; -webkit-appearance: none;
+  }
+  .btn-done:active { border-color: var(--danger); color: var(--danger); }
+
+  /* DONE */
+  #done { max-width: 420px; margin: 0 auto; padding: 100px 24px; text-align: center; align-items: center; gap: 18px; }
+  #done .moon { font-size: 5rem; }
+  #done h2 { font-family: var(--serif); font-size: 2rem; font-weight: 400; color: var(--cream); }
+  #done h2 em { font-style: italic; color: var(--accent2); }
+  #done p { color: var(--muted); line-height: 1.9; font-size: 1rem; font-family: var(--serif); font-style: italic; }
+  .divider { width: 48px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); }
+  .btn-restart { background: none; border: 1.5px solid #4a3520; border-radius: 12px; color: var(--muted); font-size: .95rem; padding: 13px 26px; cursor: pointer; font-family: var(--serif); }
+  .btn-restart:active { border-color: var(--accent); color: var(--accent2); }
+
+  .loading { text-align: center; padding: 40px 0; color: var(--muted); font-family: var(--serif); font-style: italic; }
+  .spinner { width: 36px; height: 36px; border: 2px solid #4a3520; border-top-color: var(--accent); border-radius: 50%; animation: spin .9s linear infinite; margin: 0 auto 14px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-msg { background: #2a1208; border: 1px solid #e05c3a44; border-radius: 12px; padding: 14px 16px; color: var(--danger); font-size: .88rem; line-height: 1.6; max-width: 720px; margin: 0 auto; }
+  .status-msg { text-align: center; color: var(--muted); font-family: var(--serif); font-style: italic; font-size: .85rem; padding: 8px 0; max-width: 720px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login" class="screen active">
+  <div class="logo-eyebrow">Votre rituel du soir</div>
+  <div class="logo">
+    <h1>YT <em>Calm</em></h1>
+  </div>
+  <div class="logo-line"></div>
+  <div class="logo"><p>Votre cinéma YouTube personnel.<br>Pas plus.</p></div>
+  <button class="btn-google" onclick="signIn()">
+    <img src="https://www.google.com/favicon.ico" alt="G">
+    Connexion avec Google
+  </button>
+  <div id="loginError"></div>
+</div>
+
+<!-- APP -->
+<div id="app" class="screen">
+  <div class="app-header">
+    <div class="app-header-left">
+      <div class="eyebrow">Votre cinéma</div>
+      <h1>YT <em>Calm</em></h1>
+    </div>
+    <button class="btn-ghost" onclick="signOut()">Déconnexion</button>
+  </div>
+  <div id="main-content"><div class="loading"><div class="spinner"></div>Analyse de vos abonnements…</div></div>
+  <div class="bottom-zone">
+    <div class="suggestion-box">
+      <label>💬 Suggestion au chef</label>
+      <div class="suggestion-row">
+        <input type="text" id="suggInput" placeholder="thème ou nom de chaîne…">
+        <button class="btn-save" onclick="saveSuggestion()">OK</button>
+      </div>
+      <div class="sugg-hint">Un thème ("science", "cuisine") ou une chaîne ("Kurzgesagt") pour la prochaine session.</div>
+      <div class="suggestion-saved" id="suggSaved">✓ Noté pour la prochaine fois !</div>
+    </div>
+    <button class="btn-done" onclick="showScreen('done')">🌙 C'est tout pour aujourd'hui</button>
+  </div>
+</div>
+
+<!-- PLAYER OVERLAY -->
+<div id="player-overlay">
+  <button class="player-close" onclick="closePlayer()">✕</button>
+  <div class="player-wrap">
+    <div class="player-embed"><iframe id="player-iframe" allowfullscreen></iframe></div>
+    <div class="player-info">
+      <div class="player-title" id="player-title"></div>
+      <div class="player-channel" id="player-channel"></div>
+    </div>
+  </div>
+</div>
+
+<!-- DONE -->
+<div id="done" class="screen">
+  <div class="moon">🌙</div>
+  <h2>Bien <em>joué.</em></h2>
+  <div class="divider"></div>
+  <p>Vous avez regardé votre sélection.<br>Reposez-vous maintenant.</p>
+  <button class="btn-restart" onclick="newSession()">↺ Nouvelle sélection</button>
+</div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+const CLIENT_ID = '74412624473-omok3h39tr5nvm165genb5n2kchc31g2.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/youtube.readonly';
+const CLAUDE_API = 'https://api.anthropic.com/v1/messages';
+let accessToken = null, tokenClient = null;
+
+// --- AUTH ---
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+function initGoogleClient() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID, scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) { document.getElementById('loginError').innerHTML = `<div class="error-msg">${esc(resp.error)}</div>`; return; }
+      accessToken = resp.access_token;
+      showScreen('app');
+      loadSession();
+    }
+  });
+}
+function signIn() { if (!tokenClient) initGoogleClient(); tokenClient.requestAccessToken({ prompt: 'select_account' }); }
+function signOut() { if (accessToken) google.accounts.oauth2.revoke(accessToken); accessToken = null; showScreen('login'); }
+
+// --- PLAYER ---
+function openPlayer(id, title, channel) {
+  document.getElementById('player-iframe').src = `https://www.youtube.com/embed/${id}?autoplay=1&rel=0`;
+  document.getElementById('player-title').textContent = title;
+  document.getElementById('player-channel').textContent = channel;
+  document.getElementById('player-overlay').classList.add('active');
+}
+function closePlayer() {
+  document.getElementById('player-overlay').classList.remove('active');
+  document.getElementById('player-iframe').src = '';
+}
+
+// --- YT API ---
+async function ytGet(endpoint) {
+  const r = await fetch(`https://www.googleapis.com/youtube/v3/${endpoint}`, {
+    headers: { Authorization: `Bearer ${accessToken}` }
+  });
+  return r.json();
+}
+
+async function getSubscriptions() {
+  let subs = [], pageToken = '';
+  do {
+    const url = `subscriptions?part=snippet&mine=true&maxResults=50${pageToken ? '&pageToken='+pageToken : ''}`;
+    const d = await ytGet(url);
+    if (d.error) throw new Error(d.error.message);
+    (d.items||[]).forEach(i => subs.push({ channelId: i.snippet.resourceId.channelId, title: i.snippet.title }));
+    pageToken = d.nextPageToken || '';
+  } while (pageToken);
+  return subs;
+}
+
+async function getVideosFromChannel(channelId, keyword) {
+  let url = `search?part=snippet&channelId=${channelId}&order=date&maxResults=10&type=video&videoCategoryId=0`;
+  if (keyword) url += `&q=${encodeURIComponent(keyword)}`;
+  const d = await ytGet(url);
+  if (d.error) return [];
+  return (d.items||[]).filter(v => !v.snippet.title.toLowerCase().includes('#shorts'));
+}
+
+async function getVideoDetails(videoIds) {
+  if (!videoIds.length) return [];
+  const d = await ytGet(`videos?part=contentDetails,snippet&id=${videoIds.join(',')}`);
+  return d.items || [];
+}
+
+function parseDuration(iso) {
+  const m = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+  if (!m) return 0;
+  return (+(m[1]||0))*3600 + (+(m[2]||0))*60 + (+(m[3]||0));
+}
+
+function formatDuration(secs) {
+  const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
+  if (h) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+// Non-music categories to exclude
+const MUSIC_CATEGORY = '10';
+
+async function getFilteredVideos(channelId, keyword) {
+  const raw = await getVideosFromChannel(channelId, keyword);
+  if (!raw.length) return [];
+  const ids = raw.map(v => v.id.videoId);
+  const details = await getVideoDetails(ids);
+  return details.filter(v => {
+    const dur = parseDuration(v.contentDetails.duration);
+    const cat = v.snippet.categoryId;
+    return dur > 60 && dur < 7200 && cat !== MUSIC_CATEGORY;
+  }).map(v => ({
+    id: v.id,
+    title: v.snippet.title,
+    channel: v.snippet.channelTitle,
+    thumbnail: v.snippet.thumbnails?.medium?.url || v.snippet.thumbnails?.default?.url,
+    duration: formatDuration(parseDuration(v.contentDetails.duration)),
+    categoryId: v.snippet.categoryId
+  }));
+}
+
+// --- CLAUDE AI for themes ---
+async function generateThemes(subTitles, suggestion) {
+  const prompt = `Voici une liste de chaînes YouTube auxquelles un utilisateur est abonné :
+${subTitles.slice(0, 60).join(', ')}
+
+${suggestion ? `L'utilisateur a aussi fait cette suggestion pour sa session : "${suggestion}"` : ''}
+
+Regroupe ces chaînes en exactement 4 thèmes cohérents et personnalisés (pas de musique, pas de clips). Donne un nom court et évocateur à chaque thème (2-4 mots max, en français). Associe 3 à 5 noms de chaînes à chaque thème.
+
+Réponds UNIQUEMENT en JSON valide, sans markdown, sans explication :
+[
+  {"theme": "Nom du thème", "channels": ["Chaîne1", "Chaîne2", "Chaîne3"]},
+  ...
+]`;
+
+  const r = await fetch('/.netlify/functions/claude', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  const d = await r.json();
+  const text = d.content?.map(c => c.text||'').join('') || '[]';
+  try { return JSON.parse(text.replace(/```json|```/g,'')); }
+  catch(e) { return null; }
+}
+
+async function findDiscovery(subs, suggestion) {
+  // Search outside usual channels
+  const keywords = suggestion || 'documentaire fascinant découverte';
+  const d = await ytGet(`search?part=snippet&type=video&q=${encodeURIComponent(keywords)}&maxResults=20&order=relevance&relevanceLanguage=fr`);
+  const items = (d.items||[]).filter(v => {
+    const cid = v.snippet.channelId;
+    return !subs.some(s => s.channelId === cid) && !v.snippet.title.toLowerCase().includes('#shorts');
+  });
+  if (!items.length) return null;
+  const picked = items[Math.floor(Math.random() * Math.min(items.length, 10))];
+  const details = await getVideoDetails([picked.id.videoId]);
+  if (!details.length) return null;
+  const v = details[0];
+  const dur = parseDuration(v.contentDetails.duration);
+  if (dur < 60 || v.snippet.categoryId === MUSIC_CATEGORY) return null;
+  return {
+    id: v.id, title: v.snippet.title, channel: v.snippet.channelTitle,
+    thumbnail: v.snippet.thumbnails?.medium?.url,
+    duration: formatDuration(dur)
+  };
+}
+
+function shuffle(arr) {
+  for (let i = arr.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; }
+  return arr;
+}
+
+function setStatus(msg) {
+  const el = document.getElementById('main-content');
+  el.innerHTML = `<div class="loading"><div class="spinner"></div>${msg}</div>`;
+}
+
+// --- RENDER ---
+function renderThumbCard(v) {
+  const card = document.createElement('div');
+  card.className = 'thumb-card';
+  card.innerHTML = `
+    <div class="thumb-img">
+      <img src="${esc(v.thumbnail||'')}" alt="" loading="lazy">
+      <div class="thumb-play"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="12" fill="#e8823acc"/><polygon points="10,8 18,12 10,16" fill="#f5eed8"/></svg></div>
+    </div>
+    <div class="thumb-info">
+      <div class="thumb-title">${esc(v.title)}</div>
+      <div class="thumb-channel">${esc(v.channel)}</div>
+      <div class="thumb-duration">${esc(v.duration)}</div>
+    </div>`;
+  card.onclick = () => openPlayer(v.id, v.title, v.channel);
+  return card;
+}
+
+function renderBundle(theme, videos) {
+  const bundle = document.createElement('div');
+  bundle.className = 'bundle';
+  bundle.innerHTML = `<div class="bundle-header"><div class="bundle-title"><em>${esc(theme)}</em></div><div class="bundle-line"></div></div>`;
+  const row = document.createElement('div');
+  row.className = 'bundle-row';
+  videos.forEach(v => row.appendChild(renderThumbCard(v)));
+  bundle.appendChild(row);
+  return bundle;
+}
+
+function renderDiscovery(v) {
+  const card = document.createElement('div');
+  card.className = 'decouverte-card';
+  card.innerHTML = `
+    <div class="decouverte-label">✦ Découverte du soir</div>
+    <div class="decouverte-img">
+      <img src="${esc(v.thumbnail||'')}" alt="" loading="lazy">
+      <div class="thumb-play"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="12" fill="#e8823acc"/><polygon points="10,8 18,12 10,16" fill="#f5eed8"/></svg></div>
+    </div>
+    <div class="decouverte-info">
+      <div class="thumb-title">${esc(v.title)}</div>
+      <div class="thumb-channel">${esc(v.channel)}</div>
+      <div class="thumb-duration">${esc(v.duration)}</div>
+    </div>`;
+  card.onclick = () => openPlayer(v.id, v.title, v.channel);
+  return card;
+}
+
+// --- MAIN ---
+async function loadSession() {
+  const content = document.getElementById('main-content');
+  const sugg = localStorage.getItem('ytcalm_suggestion') || '';
+  if (sugg) document.getElementById('suggInput').value = sugg;
+
+  try {
+    setStatus('Chargement de vos abonnements…');
+    const subs = await getSubscriptions();
+    if (!subs.length) { content.innerHTML = '<div class="error-msg">Aucun abonnement trouvé.</div>'; return; }
+
+    setStatus('L\'IA prépare vos thèmes du soir…');
+    const subMap = Object.fromEntries(subs.map(s => [s.title.toLowerCase(), s]));
+    const themes = await generateThemes(subs.map(s => s.title), sugg);
+
+    content.innerHTML = '';
+
+    // Découverte
+    setStatus('Recherche d\'une découverte…');
+    const discovery = await findDiscovery(subs, sugg);
+    if (discovery) content.appendChild(renderDiscovery(discovery));
+
+    // Bundles
+    const usedThemes = themes || [];
+    for (const t of usedThemes.slice(0, 4)) {
+      setStatus(`Sélection de vidéos — ${t.theme}…`);
+      const matchedSubs = (t.channels||[])
+        .map(name => subMap[name.toLowerCase()] || subs.find(s => s.title.toLowerCase().includes(name.toLowerCase())))
+        .filter(Boolean);
+
+      const pool = matchedSubs.length ? matchedSubs : shuffle([...subs]).slice(0, 3);
+      let videos = [];
+
+      for (const sub of shuffle(pool)) {
+        if (videos.length >= 5) break;
+        const kw = sugg && !subMap[sugg.toLowerCase()] ? sugg : '';
+        const vids = await getFilteredVideos(sub.channelId, kw);
+        const pick = vids[Math.floor(Math.random() * Math.min(vids.length, 5))];
+        if (pick && !videos.find(v => v.id === pick.id)) videos.push(pick);
+      }
+
+      if (videos.length) content.appendChild(renderBundle(t.theme, videos));
+    }
+
+    if (!content.children.length) {
+      content.innerHTML = '<div class="error-msg">Aucune vidéo trouvée. Réessayez.</div>';
+    }
+
+  } catch(e) {
+    content.innerHTML = `<div class="error-msg">Erreur : ${esc(e.message)}</div>`;
+  }
+}
+
+function saveSuggestion() {
+  const val = document.getElementById('suggInput').value.trim();
+  localStorage.setItem('ytcalm_suggestion', val);
+  const s = document.getElementById('suggSaved');
+  s.style.display = 'block';
+  setTimeout(() => s.style.display = 'none', 3000);
+}
+
+function newSession() { showScreen('app'); loadSession(); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+showScreen('login');
+window.addEventListener('load', () => { if (window.google) initGoogleClient(); });
+</script>
+</body>
+</html>
